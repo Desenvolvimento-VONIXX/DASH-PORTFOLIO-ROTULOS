@@ -54,8 +54,6 @@ const LinhaTempo: React.FC<Props> = ({ idClick, linha_tempo }) => {
                 console.log("Log salvo com sucesso!");
             });
         }
-
-
     }
 
     const handleBaixaAnexo = async (idAtividade: number) => {
@@ -66,28 +64,55 @@ const LinhaTempo: React.FC<Props> = ({ idClick, linha_tempo }) => {
 
             const anexos = response[0]?.ANEXO;
             if (anexos) {
-                const url = `${window.location.origin}/mge/AD_ROTULOSATIVIDADE@ANEXO@ID_ROTULO=${idClick}@ID_ATIVIDADE=${idAtividade}.dbimage`;
+                var decodedText = hexToAscii(anexos);
+                var stringOriginal = decodedText.replace('__start_fileinformation__', '').replace('__end_fileinformation__', '');
+                var fileInfoArray = JSON.parse(stringOriginal);
+                if (Array.isArray(fileInfoArray) && fileInfoArray.length > 0) {
+                    fileInfoArray.forEach(function (fileInfo) {
+                        var internalName = fileInfo.internalName;
 
-                const downloadResponse = await fetch(url);
-                if (!downloadResponse.ok) {
-                    throw new Error('Falha ao baixar o arquivo');
+                        var caminhoCompleto = "Repo://Sistema/Arquivos//AD_ROTULOSATIVIDADE/" + internalName;
+                        let base64 = btoa(caminhoCompleto);
+                        baixarAnexo(base64);
+                    });
+                } else {
+                    console.error('Array vazio ou inválido:', fileInfoArray);
                 }
-
-                const blob = await downloadResponse.blob();
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `rotulo_${idClick}_${idAtividade}`;
-                link.click();
                 salvaLog(idAtividade)
             } else {
                 console.error("Não foi encontrado o anexo para essa atividade.");
             }
-
         } catch (error) {
             console.error("Erro ao baixar anexo", error);
         }
     };
 
+    function baixarAnexo(base64: string) {
+        var downloadBaseUrl = `${window.location.origin}/mge/download.mge`;
+        var downloadUrl = downloadBaseUrl + "?fileName=" + encodeURIComponent(base64) + '&fileNameIsEncoded=S';
+        var link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', 'nome_do_arquivo.extensao');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+
+    const hexToAscii = (hexStr: string) => {
+        hexStr = hexStr.replace(/\s/g, '');
+        if (hexStr.length % 2 !== 0) {
+            console.error('String hexadecimal inválida.');
+            return '';
+        }
+        var asciiStr = '';
+        for (var i = 0; i < hexStr.length; i += 2) {
+            var hexPair = hexStr.substr(i, 2);
+            var decimalValue = parseInt(hexPair, 16);
+            asciiStr += String.fromCharCode(decimalValue);
+        }
+        return asciiStr;
+    }
 
 
 
